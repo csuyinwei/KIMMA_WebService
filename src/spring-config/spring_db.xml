@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+           http://www.springframework.org/schema/beans/spring-beans-2.5.xsd 
+           http://www.springframework.org/schema/tx 
+           http://www.springframework.org/schema/tx/spring-tx-2.5.xsd 
+           http://www.springframework.org/schema/aop 
+           http://www.springframework.org/schema/aop/spring-aop-2.5.xsd">
+
+	<!-- 开启事务控制的注解支持 -->
+	<tx:annotation-driven transaction-manager="transactionManager" />
+
+	<!-- 定义数据源的信息 -->
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"
+		destroy-method="close">
+		<property name="driverClass">
+			<value>com.mysql.jdbc.Driver</value>
+		</property>
+		<property name="jdbcUrl">
+			<value>jdbc:mysql://localhost:3306/cclms?useUnicode=true&amp;characterEncoding=utf-8</value>
+		</property>
+		<property name="user">
+			<value>root</value>
+		</property>
+		<property name="password">
+			<value></value>
+		</property>
+		<property name="maxPoolSize">
+			<value>5</value>
+		</property>
+		<property name="minPoolSize">
+			<value>1</value>
+		</property>
+		<property name="initialPoolSize">
+			<value>1</value>
+		</property>
+		<property name="maxIdleTime">
+			<value>20</value>
+		</property>
+	</bean>
+
+	<!--定义Hibernate的SessionFactory -->
+	<!-- SessionFactory使用的数据源为上面的数据源 -->
+	<!-- 指定了Hibernate的映射文件和配置信息 -->
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource">
+			<ref local="dataSource" />
+		</property>
+		<property name="mappingLocations">
+			<list>
+				<value>classpath:cn/edu/csu/pojo/*.hbm.xml</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+				<prop key="hibernate.show_sql">true</prop>
+				<prop key="hibernate.format_sql">true</prop>
+			<!-- 	<prop key="hibernate.hbm2ddl.auto">update</prop>	 -->
+				<prop key="hibernate.jdbc.batch_size">20</prop>
+			</props>
+		</property>
+	</bean>
+
+	<!-- 配置事务管理器 指定其作用的sessionFactory把事务交给Spring去处理 -->
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+		<property name="sessionFactory">
+			<ref bean="sessionFactory" />
+		</property>
+	</bean>
+
+	<!-- 即方法名称匹配通配名称时添加事务 -->
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="add*" propagation="REQUIRED" />
+			<tx:method name="delete*" propagation="REQUIRED" />
+			<tx:method name="update*" propagation="REQUIRED" />
+			<tx:method name="get*" read-only="true" propagation="REQUIRED" />
+			<tx:method name="find*" read-only="true" propagation="REQUIRED" />
+			<tx:method name="*" propagation="REQUIRED" />
+		</tx:attributes>
+	</tx:advice>
+
+	<!-- 给com.etc.service.impl下的任意返回值任意参数的任意方法添加这个切面 -->
+	<aop:config>
+		<aop:pointcut id="allServiceMethod"
+			expression="execution(* cn.edu.csu.service.impl.*.*(..))" />
+		<aop:advisor pointcut-ref="allServiceMethod" advice-ref="txAdvice" />
+	</aop:config>
+</beans>
